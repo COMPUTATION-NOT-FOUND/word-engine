@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "wordengine/ai.hpp"
 #include "wordengine/wordsearch.hpp"
 
 static int failures = 0;
@@ -92,11 +93,94 @@ static void test_methods_agree() {
     }
 }
 
+static void test_tessera_scoring() {
+    we::Dawg d = we::Dawg::build({"cat", "cats", "at", "ta", "act"});
+    we::Board b;
+    we::Move m;
+    // CAT across through the centre: C on G8, A on the centre (double word), T on I8.
+    CHECK(we::parse_move(b, "8G CAT", m).empty());
+    CHECK(we::validate(d, b, m).empty());
+    CHECK(m.score == (4 + 1 + 1) * 2);  // C=4, A=1, T=1
+    CHECK(m.word == "cat" && m.row == 7 && m.col == 6);
+    we::Move off;
+    CHECK(we::parse_move(b, "1A CAT", off).empty());
+    CHECK(!we::validate(d, b, off).empty());  // misses the centre
+    we::Move bad;
+    CHECK(we::parse_move(b, "8G TAC", bad).empty());
+    CHECK(we::validate(d, b, bad) == "TAC is not in the word list");
+    // A blank (lowercase) scores nothing.
+    we::Move blank;
+    CHECK(we::parse_move(b, "8G cAT", blank).empty());
+    CHECK(we::validate(d, b, blank).empty() && blank.score == (0 + 1 + 1) * 2);
+    // Every first move the generator finds for this rack is valid with the same score.
+    we::MoveGen gen(d);
+    auto moves = gen.all_moves(b, we::Rack::from_string("cats"));
+    CHECK(!moves.empty());
+    for (auto mv : moves) {
+        int s = mv.score;
+        CHECK(we::validate(d, b, mv).empty() && mv.score == s);
+    }
+}
+
+// Plays whole games on the real word list, checking the generator against the
+// independent validator on every turn and that no tile appears or disappears.
+static void test_tessera_games() {
+    std::vector<std::string> words;
+    try {
+        words = we::load_words(WE_DICT);
+    } catch (...) {
+        std::printf("skipping game tests: %s not found\n", WE_DICT);
+        return;
+    }
+    we::Dawg d = we::Dawg::build(words);
+    we::MoveGen gen(d);
+    we::Ai ai(d);
+    for (uint64_t seed = 1; seed <= 3; ++seed) {
+        we::Game g(d, seed);
+        int turns = 0;
+        while (!g.over() && turns < 200) {
+            const we::Board &b = g.board();
+            auto moves = gen.all_moves(b, g.rack(g.to_move()));
+            std::set<std::string> keys;
+            for (auto mv : moves) {
+                int s = mv.score;
+                std::string err = we::validate(d, b, mv);
+                CHECK(err.empty());
+                CHECK(mv.score == s);
+                if (!err.empty() || mv.score != s) {
+                    std::printf("  seed %llu turn %d: %s -> %s (%d vs %d)\n", (unsigned long long)seed, turns,
+                                mv.str().c_str(), err.c_str(), s, mv.score);
+                    return;
+                }
+                std::string key = mv.horizontal ? "h" : "v";
+                for (auto &p : mv.tiles) key += std::to_string(p.r * 15 + p.c) + p.tile;
+                CHECK(keys.insert(key).second);  // no move found twice
+            }
+            we::AiOptions o;
+            o.level = seed == 2 ? we::Level::Medium : we::Level::Hard;
+            we::Move m = ai.choose(g, o);
+            // The move's text form parses back to the same tiles.
+            if (m.kind == we::Move::Place) {
+                we::Move back;
+                CHECK(we::parse_move(b, m.str(), back).empty());
+                CHECK(back.tiles.size() == m.tiles.size());
+            }
+            CHECK(g.play(m).empty());
+            ++turns;
+            int count = g.board().tile_count() + g.rack(0).size + g.rack(1).size + g.bag_size();
+            CHECK(count == 100);
+        }
+        CHECK(g.over());
+    }
+}
+
 int main() {
     test_dawg_small();
     test_dawg_random();
     test_search_hand();
     test_methods_agree();
+    test_tessera_scoring();
+    test_tessera_games();
     if (failures) {
         std::printf("%d check(s) failed\n", failures);
         return 1;

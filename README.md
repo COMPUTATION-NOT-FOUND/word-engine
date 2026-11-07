@@ -1,6 +1,6 @@
 # word-engine
 
-A fast word finder in C++17. It grew out of my DSA Lab 11 word-search solution and is the base for a word-search solver and a crossword-tile game AI that anyone can play against in the browser.
+A fast word finder in C++17. It grew out of my DSA Lab 11 word-search solution and now also runs two games with an AI opponent: **Tessera**, a crossword-tile board game, and **Word Hunt**, a race to find hidden words. Both play in the browser (the C++ is compiled to WebAssembly).
 
 ## What it does now
 
@@ -29,6 +29,54 @@ The DAWG for ENABLE has 54,164 nodes and takes 0.93 MB; it is built in about 0.1
 
 All three methods were also checked against the course's reference answers (3×3 up to 300×300 grids): same words, same positions, same directions.
 
+## Tessera (crossword-tile game)
+
+An original game in the crossword-tile family, with its own board layout and letter values. 15Ã—15 board, 100 tiles (2 blanks), 7-tile racks, double/triple letter and word squares, +50 for using all 7 tiles. The engine tracks the bag, both racks, scores and the full move history, and checks every human move (one line, joined to the board, all words in the list).
+
+**Move generation:** Appelâ€“Jacobson over the DAWG. Only squares next to existing tiles ("anchors") start a search, and each empty square keeps a precomputed set of letters that make a valid word with the tiles above and below it. A typical position has 300â€“600 legal moves, found in well under a millisecond.
+
+**AI levels**
+
+| Level | How it chooses |
+|---|---|
+| Easy | a random move from the middle third by score |
+| Medium | the highest score this turn |
+| Hard | score + value of the tiles it keeps ("leave": penalises duplicates, bad vowel balance, Q without U); also considers swapping tiles |
+| Expert | looks ahead: Monte-Carlo simulation, then an exact search once the bag is empty |
+
+**How Expert looks ahead**
+
+- *Simulation (bag not empty).* It takes the best ~12 candidates by Hard's measure and, for each one, plays out sample futures: draw random tiles for itself and a random rack for you from the tiles it hasn't seen, let you reply with your best move, then score its own next turn. The candidate with the best average outcome wins. Every candidate is tested against the same random futures (fairer comparisons with fewer samples), and every few rounds the weakest quarter is dropped so the time goes to the close calls ("successive halving"). It stops at the time limit.
+- *Endgame (bag empty).* Now nothing is hidden: the AI knows exactly which tiles you hold. It runs a negamax alpha-beta search with iterative deepening (up to 12 moves deep), a transposition table, and the widest look at its own first move. Going out first scores the opponent's leftover tiles twice.
+
+**Why not a chess engine's search?** Chess search (alpha-beta, PVS, null move, late-move reductions, futility pruning, SEE) assumes both players see the whole position. In Tessera you can't see the other rack or the next tiles from the bag, so a deep tree mostly explores positions that won't happen. Sampling those hidden tiles (simulation) is the technique strong programs for this kind of game use, and alpha-beta is used only at the end, where the game becomes perfect-information. Some chess ideas still carry over: move ordering, iterative deepening under a time budget, and a transposition table in the endgame.
+
+**Self-play** (`tessera selfplay`, 20 games each, seats alternated):
+
+| Match | Wins | Average score |
+|---|---|---|
+| Hard vs Medium | 16â€“4 | 467 vs 410 |
+| Expert (300 ms/move) vs Hard | 13â€“7 | 461 vs 422 |
+
+Expert typically samples 1,300â€“4,100 futures per move; a full endgame search to depth 12 took about 0.1 s.
+
+## Word Hunt
+
+A 12Ã—12 letter grid with every hidden word (4+ letters, any of 8 directions) found by the DAWG search. You and the AI race for 3 minutes; a word counts for whoever finds it first, worth its length minus 3. The AI's level sets how often it finds a word and how long its words are.
+
+## Play in the browser
+
+`web/` holds the page: `bindings.cpp` exposes the engine through embind, `worker.js` runs it in a Web Worker so the page stays smooth while the AI thinks, and `index.html`/`app.js` draw the games. `.github/workflows/pages.yml` builds and tests on every push, compiles the WebAssembly with Emscripten, and publishes the `release` branch to GitHub Pages (enable it once under Settings â†’ Pages â†’ Source: GitHub Actions).
+
+Local web build (needs the Emscripten SDK):
+
+```
+emcmake cmake -S . -B build-web
+cmake --build build-web
+```
+
+Then copy `web/*`, `build-web/engine.js`, `build-web/engine.wasm` and `data/enable1.txt` into one folder and serve it (for example `python -m http.server`); opening the file directly won't load the worker.
+
 ## Build
 
 ```
@@ -38,6 +86,8 @@ cmake --build build
 ./build/wsearch data/enable1.txt --random 20x20 7
 ./build/wsearch --method lab data/enable1.txt my.grid.txt
 ./build/bench data/enable1.txt --sizes 50,250,1000
+./build/tessera play data/enable1.txt --level expert
+./build/tessera selfplay data/enable1.txt --a expert --b hard --games 20 --time 300
 ```
 
 Grid file format (same as Lab 11): number of rows, number of columns, then the letters.
@@ -55,12 +105,16 @@ vztsodtpaxztaqaceetfjohtaaoe
 | `include/wordengine/dawg.hpp`, `src/dawg.cpp` | DAWG built with Daciuk's incremental method, packed into flat arrays |
 | `include/wordengine/wordsearch.hpp`, `src/wordsearch.cpp` | grids, the three search methods |
 | `apps/wsearch.cpp` | command-line solver |
+| `board`, `movegen`, `game`, `ai` (.hpp/.cpp) | Tessera: board and tiles, move generator and validator, game rules, AI |
 | `apps/bench.cpp` | benchmark |
+| `apps/tessera.cpp` | play Tessera in the terminal, or AI self-play matches |
+| `web/` | browser page, WebAssembly bindings and worker |
 | `tests/test_main.cpp` | tests |
 | `archive/lab11/` | the original Lab 11 code, unchanged |
 | `data/enable1.txt` | ENABLE word list (public domain) |
 
 ## Next
 
-- Move generator for a crossword-tile board game (anchors and cross-checks over the DAWG), scoring, and three AI levels.
-- WebAssembly build and a browser game: play against the AI, or paste a grid and solve it.
+- Learn the leave values from self-play instead of the hand-set table.
+- Let Expert look further ahead when the bag is nearly empty ("pre-endgame").
+- Solve a pasted grid in the browser.

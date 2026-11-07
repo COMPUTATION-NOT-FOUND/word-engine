@@ -1,0 +1,54 @@
+# Builds and tests the engine, compiles it to WebAssembly and publishes the playable page to GitHub Pages.
+# One-time setup on GitHub: Settings → Pages → Source: "GitHub Actions".
+name: build and deploy
+
+on:
+  push:
+    branches: [release, development]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
+      - run: ctest --test-dir build --output-on-failure
+
+  web:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+      - run: emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release && cmake --build build-web -j
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp web/index.html web/style.css web/app.js web/worker.js _site/
+          cp build-web/engine.js build-web/engine.wasm _site/
+          cp data/enable1.txt _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    # Only the release branch goes live.
+    if: github.ref == 'refs/heads/release'
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

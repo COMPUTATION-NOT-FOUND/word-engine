@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Word Engine</title>
+  <meta name="description" content="Play Tessera, a crossword-tile game, and Word Hunt against an AI written in C++ and compiled to WebAssembly.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Word Engine</h1>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-tessera" aria-selected="true" aria-controls="tessera">Tessera</button>
+      <button role="tab" id="tab-hunt" aria-selected="false" aria-controls="hunt">Word Hunt</button>
+    </nav>
+    <p id="loading" class="status">Loading the word list…</p>
+  </header>
+
+  <main>
+    <!-- Tessera -->
+    <section id="tessera" role="tabpanel" aria-labelledby="tab-tessera">
+      <div class="game">
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="Board"></div>
+          <div class="rack-row">
+            <div id="rack" class="rack" aria-label="Your tiles"></div>
+          </div>
+          <div class="actions">
+            <button id="play" class="primary">Play</button>
+            <button id="recall">Recall</button>
+            <button id="shuffle">Shuffle</button>
+            <button id="swap">Swap</button>
+            <button id="pass">Pass</button>
+            <button id="hint">Hint</button>
+          </div>
+          <p id="message" class="status" role="status" aria-live="polite"></p>
+        </div>
+
+        <aside class="side">
+          <div class="scores">
+            <div><span class="label">You</span><span id="score-you" class="big">0</span></div>
+            <div><span class="label">AI</span><span id="score-ai" class="big">0</span></div>
+            <div><span class="label">Bag</span><span id="bag" class="big">100</span></div>
+          </div>
+          <div class="settings">
+            <label>AI level
+              <select id="level">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+                <option value="expert" selected>Expert (looks ahead)</option>
+              </select>
+            </label>
+            <label>Thinking time
+              <select id="think">
+                <option value="500">0.5 s</option>
+                <option value="1500" selected>1.5 s</option>
+                <option value="4000">4 s</option>
+              </select>
+            </label>
+            <button id="new-game">New game</button>
+          </div>
+          <details id="thinking" open>
+            <summary>What the AI considered</summary>
+            <p id="think-summary" class="small"></p>
+            <ol id="think-top" class="small"></ol>
+          </details>
+          <h2>Moves</h2>
+          <ol id="log" class="log small"></ol>
+          <details class="small">
+            <summary>How to play</summary>
+            <p>Click a tile in your rack, then a square on the board. Click a placed tile to take it back.
+              Words read left to right or top to bottom and must join the tiles already down; the first word
+              covers the centre star. Coloured squares double or triple a letter or the whole word. Using all
+              seven tiles in one move scores 50 extra. The blank (shown as ?) can be any letter and scores 0.</p>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Word Hunt -->
+    <section id="hunt" role="tabpanel" aria-labelledby="tab-hunt" hidden>
+      <div class="game">
+        <div class="board-wrap">
+          <div id="hunt-grid" class="hunt-grid" aria-label="Letter grid"></div>
+          <p id="hunt-message" class="status" role="status" aria-live="polite">Drag across a word (any of the 8 directions), or tap its first and last letter.</p>
+        </div>
+        <aside class="side">
+          <div class="scores">
+            <div><span class="label">You</span><span id="hunt-you" class="big">0</span></div>
+            <div><span class="label">AI</span><span id="hunt-ai" class="big">0</span></div>
+            <div><span class="label">Time</span><span id="hunt-time" class="big">3:00</span></div>
+          </div>
+          <div class="settings">
+            <label>AI level
+              <select id="hunt-level">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </label>
+            <button id="hunt-new" class="primary">New round</button>
+          </div>
+          <p id="hunt-left" class="small"></p>
+          <div class="found">
+            <div><h2>You</h2><ul id="hunt-you-list" class="small"></ul></div>
+            <div><h2>AI</h2><ul id="hunt-ai-list" class="small"></ul></div>
+          </div>
+          <p class="small">Words of 4+ letters. Points: letters minus 3. A word counts for whoever finds it first.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="blank-dialog">
+    <form method="dialog">
+      <p>Which letter should the blank be?</p>
+      <div id="blank-letters" class="letters"></div>
+      <button value="cancel">Cancel</button>
+    </form>
+  </dialog>
+
+  <footer class="small">C++ engine compiled to WebAssembly · word list: ENABLE (public domain)</footer>
+  <script src="app.js"></script>
+</body>
+</html>
