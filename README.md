@@ -118,3 +118,7 @@ vztsodtpaxztaqaceetfjohtaaoe
 - Learn the leave values from self-play instead of the hand-set table.
 - Let Expert look further ahead when the bag is nearly empty ("pre-endgame").
 - Solve a pasted grid in the browser.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The word list in `data/enable1.txt` is the public-domain ENABLE list.
