@@ -33,7 +33,7 @@ All three methods were also checked against the course's reference answers (3×3
 
 An original game in the crossword-tile family, with its own board layout and letter values. 15Ã—15 board, 100 tiles (2 blanks), 7-tile racks, double/triple letter and word squares, +50 for using all 7 tiles. The engine tracks the bag, both racks, scores and the full move history, and checks every human move (one line, joined to the board, all words in the list).
 
-**Move generation:** Appelâ€“Jacobson over the DAWG. Only squares next to existing tiles ("anchors") start a search, and each empty square keeps a precomputed set of letters that make a valid word with the tiles above and below it. A typical position has 300â€“600 legal moves, found in well under a millisecond.
+**Move generation:** Appel–Jacobson over the DAWG. Only squares next to existing tiles ("anchors") start a search, and each empty square keeps a precomputed set of letters that make a valid word with the tiles above and below it. A typical position has 300–600 legal moves, found in well under a millisecond.
 
 **AI levels**
 
@@ -55,10 +55,10 @@ An original game in the crossword-tile family, with its own board layout and let
 
 | Match | Wins | Average score |
 |---|---|---|
-| Hard vs Medium | 16â€“4 | 467 vs 410 |
-| Expert (300 ms/move) vs Hard | 13â€“7 | 461 vs 422 |
+| Hard vs Medium | 16–4 | 467 vs 410 |
+| Expert (300 ms/move) vs Hard | 13–7 | 461 vs 422 |
 
-Expert typically samples 1,300â€“4,100 futures per move; a full endgame search to depth 12 took about 0.1 s.
+Expert typically samples 1,300–4,100 futures per move; a full endgame search to depth 12 took about 0.1 s.
 
 ## Word Hunt
 
@@ -66,7 +66,7 @@ A 12Ã—12 letter grid with every hidden word (4+ letters, any of 8 directions)
 
 ## Play in the browser
 
-`web/` holds the page: `bindings.cpp` exposes the engine through embind, `worker.js` runs it in a Web Worker so the page stays smooth while the AI thinks, and `index.html`/`app.js` draw the games. `.github/workflows/pages.yml` builds and tests on every push, compiles the WebAssembly with Emscripten, and publishes the `release` branch to GitHub Pages (enable it once under Settings â†’ Pages â†’ Source: GitHub Actions).
+`web/` holds the page: `bindings.cpp` exposes the engine through embind, `worker.js` runs it in a Web Worker so the page stays smooth while the AI thinks, and `index.html`/`app.js` draw the games. `.github/workflows/pages.yml` builds and tests on every push, compiles the WebAssembly with Emscripten, and publishes the `release` branch to GitHub Pages (enable it once under Settings → Pages → Source: GitHub Actions).
 
 Local web build (needs the Emscripten SDK):
 
